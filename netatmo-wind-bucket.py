@@ -1,8 +1,10 @@
 import os
 import time
 import logging
-import datetime
+from datetime import datetime
+import json
 import requests
+from pathlib import Path
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
 
@@ -32,6 +34,20 @@ if not device_id:
     logging.error("we need 'NETATMO_DEVICE_ID' environment variable to run")
     exit(1)
 
+buckets_file = Path('buckets.json')
+buckets = {"0": 0, "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0, "7": 0, "8": 0, "9": 0}
+last_time = 0
+if buckets_file.is_file():
+    logging.info("file for buckets exists, loading")
+    with buckets_file.open() as json_file:
+        try:
+            data = json.load(json_file)
+            buckets = data["buckets"]
+            last_time = data["last_time"]
+        except json.decoder.JSONDecodeError:
+            logging.warn("buckets.json is not a valid json file, ignoring")
+        except KeyError:
+            logging.warn("buckets.json has no 'last_time' or 'buckets' key, ignoring")
 
 def authenticate():
     payload = {'grant_type': 'password',
@@ -72,9 +88,23 @@ def get_wind(access_token):
         logging.error('%s: %s', error.response.status_code, error.response.text)
         exit(1)
 
+def update_buckets(buckets, value):
+    for speed, items in buckets.items():
+        if int(speed) - value < 1:
+            logging.info("value put in %s bucket (m/s)", speed)
+            buckets[speed] += 1
+            break
+    return buckets
+
 if __name__ == '__main__':
     while True:
         measurement_date, wind_speed = get_wind(authenticate())
-        logging.info("time of measurement (utc): %s", datetime.datetime.fromtimestamp(measurement_date))
+        logging.info("time of measurement (utc): %s", datetime.fromtimestamp(measurement_date))
         logging.info("wind speed (km/h): %s", wind_speed)
+        logging.info("wind speed (m/s): %s", int(wind_speed) * 0.27778)
+        if measurement_date > last_time:
+            buckets = update_buckets(buckets, int(wind_speed) * 0.27778)
+            last_time = measurement_date
+            with buckets_file.open(mode='w') as json_file:
+                json.dump({'buckets': buckets, 'last_time': last_time}, json_file)
         time.sleep(600)
