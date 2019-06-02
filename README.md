@@ -40,4 +40,6 @@ python netatmo-wind-bucket.py
 __OR__
 
 ```shell
-docker run 
+touch buckets.json # only if buckets.json doesn't exist
+docker run -d -v ${PWD}/buckets.json:/usr/src/app/buckets.json --env NETATMO_USERNAME=XXX --env NETATMO_PASSWORD=XXX --env NETATMO_CLIENT_ID=XXX --env NETATMO_CLIENT_SECRET=XXX --env NETATMO_DEVICE_ID="70:ee:50:xx:yy:zz" sdesbure/netatmo-wind-bucket:latest
+```
