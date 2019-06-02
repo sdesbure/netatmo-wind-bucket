@@ -2,6 +2,17 @@
 
 Read Netatmo information and store them into bucket in a JSON file
 
+[![Maintainability](https://api.codeclimate.com/v1/badges/48f8e53a77a3a8ff4dd2/maintainability)](https://codeclimate.com/github/sdesbure/netatmo-wind-bucket/maintainability)
+|
+[![](https://images.microbadger.com/badges/image/sdesbure/netatmo-wind-bucket.svg)](https://microbadger.com/images/sdesbure/netatmo-wind-bucket "Get your own image badge on microbadger.com")
+|
+[![](https://images.microbadger.com/badges/version/sdesbure/netatmo-wind-bucket.svg)](https://microbadger.com/images/sdesbure/netatmo-wind-bucket "Get your own version badge on microbadger.com")
+|
+[![](https://images.microbadger.com/badges/commit/sdesbure/netatmo-wind-bucket.svg)](https://microbadger.com/images/sdesbure/netatmo-wind-bucket "Get your own commit badge on microbadger.com")
+|
+[![](https://images.microbadger.com/badges/license/sdesbure/netatmo-wind-bucket.svg)](https://microbadger.com/images/sdesbure/netatmo-wind-bucket "Get your own license badge on microbadger.com")
+
+
 ## Installation
 
 ### prerequisites:
