@@ -90,7 +90,7 @@ def get_wind(access_token):
 
 def update_buckets(buckets, value):
     for speed, items in buckets.items():
-        if int(speed) - value < 1:
+        if value - int(speed) < 1:
             logging.info("value put in %s bucket (m/s)", speed)
             buckets[speed] += 1
             break
