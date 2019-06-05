@@ -144,6 +144,7 @@ def get_datas(retry, token):
         retry = 0
     else: 
         retry = retry_wait(retry, "retrieving wind")
+    return retry
 
 if __name__ == '__main__':
     retry = 0
