@@ -14,6 +14,10 @@ client_id = os.environ.get('NETATMO_CLIENT_ID')
 client_secret = os.environ.get('NETATMO_CLIENT_SECRET')
 device_id = os.environ.get('NETATMO_DEVICE_ID')
 
+MAX_RETRY = 10
+RETRY_SLEEP = 60
+SLEEP = 600
+
 if not username:
     logging.error("we need 'NETATMO_USERNAME' environment variable to run")
     exit(1)
@@ -49,6 +53,15 @@ if buckets_file.is_file():
         except KeyError:
             logging.warn("buckets.json has no 'last_time' or 'buckets' key, ignoring")
 
+def post_and_get_json(url, key, data=None, params=None):
+    try:
+        response = requests.post(url, params=params, data=data)
+        response.raise_for_status()
+        return response.json()[key]
+    except requests.exceptions.HTTPError as error:
+        logging.error('%s: %s', error.response.status_code, error.response.text)
+        return None
+
 def authenticate():
     payload = {'grant_type': 'password',
                'username': username,
@@ -56,37 +69,39 @@ def authenticate():
                'client_id': client_id,
                'client_secret': client_secret,
                'scope': 'read_station'}
-    try:
-        response = requests.post("https://api.netatmo.com/oauth2/token", data=payload)
-        response.raise_for_status()
-        access_token=response.json()["access_token"]
-        logging.info("authenticated")
-        return access_token
-    except requests.exceptions.HTTPError as error:
-        logging.error('%s: %s', error.response.status_code, error.response.text)
-        exit(1)
+    return post_and_get_json("https://api.netatmo.com/oauth2/token", "access_token", data=payload)
 
 def get_wind(access_token):
     params = {
         'access_token': access_token,
         'device_id': device_id
     }
+    data = post_and_get_json("https://api.netatmo.com/api/getstationsdata", "body", params=params)
+    if data:
+        return parse_devices(data["devices"])
+    else:
+        return None, None
 
-    try:
-        response = requests.post("https://api.netatmo.com/api/getstationsdata", params=params)
-        response.raise_for_status()
-        data = response.json()["body"]
-        devices = data["devices"]
-        for device in devices:
-            modules = device["modules"]
-            for module in modules:
-                if "Wind" in module["data_type"]:
-                    measurement_date = module["dashboard_data"]["time_utc"]
-                    wind_speed = module["dashboard_data"]["WindStrength"]
-                    return (measurement_date, wind_speed)
-    except requests.exceptions.HTTPError as error:
-        logging.error('%s: %s', error.response.status_code, error.response.text)
-        exit(1)
+def parse_devices(devices):
+    for device in devices:
+        date, speed = parse_modules(device["modules"])
+        if date:
+            return date, speed
+    return None, None
+
+def parse_modules(modules):
+    for module in modules:
+        date, speed = parse_module(module)
+        if date:
+            return date, speed
+    return None, None
+
+def parse_module(module):
+    if "Wind" in module["data_type"]:
+        measurement_date = module["dashboard_data"]["time_utc"]
+        wind_speed = module["dashboard_data"]["WindStrength"]
+        return measurement_date, wind_speed
+    return None, None
 
 def update_buckets(buckets, value):
     for speed, items in buckets.items():
@@ -96,15 +111,40 @@ def update_buckets(buckets, value):
             break
     return buckets
 
+def retry_wait(retry, action):
+    if retry < MAX_RETRY:
+        logging.warn("Issue with %s, waiting %s seconds", action, RETRY_SLEEP)
+        time.sleep(RETRY_SLEEP)
+        retry += 1
+    else:
+        logging.error("too many issue with %s, waiting %s seconds", action, SLEEP)
+        time.sleep(SLEEP)
+    return retry
+
+def parse_datas(retry, measurement_date, wind_speed):
+    logging.info("time of measurement (utc): %s", datetime.fromtimestamp(measurement_date))
+    logging.info("wind speed (km/h): %s", wind_speed)
+    logging.info("wind speed (m/s): %s", int(wind_speed) * 0.27778)
+    if measurement_date > last_time:
+        buckets = update_buckets(buckets, int(wind_speed) * 0.27778)
+        last_time = measurement_date
+        with buckets_file.open(mode='w') as json_file:
+            json.dump({'buckets': buckets, 'last_time': last_time}, json_file)
+        time.sleep(SLEEP - (retry * RETRY_SLEEP))
+
+def get_datas(retry, token):
+    measurement_date, wind_speed = get_wind(authenticate())
+    if measurement_date:
+        parse_datas(retry, measurement_date, wind_speed)
+        retry = 0
+    else: 
+        retry = retry_wait(retry, "retrieving wind")
+
 if __name__ == '__main__':
+    retry = 0
     while True:
-        measurement_date, wind_speed = get_wind(authenticate())
-        logging.info("time of measurement (utc): %s", datetime.fromtimestamp(measurement_date))
-        logging.info("wind speed (km/h): %s", wind_speed)
-        logging.info("wind speed (m/s): %s", int(wind_speed) * 0.27778)
-        if measurement_date > last_time:
-            buckets = update_buckets(buckets, int(wind_speed) * 0.27778)
-            last_time = measurement_date
-            with buckets_file.open(mode='w') as json_file:
-                json.dump({'buckets': buckets, 'last_time': last_time}, json_file)
-        time.sleep(600)
+        token = authenticate()
+        if token:
+            retry = get_datas(retry, token)
+        else:
+            retry = retry_wait(retry, "authentication")
