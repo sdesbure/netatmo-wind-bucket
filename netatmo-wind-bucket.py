@@ -138,7 +138,7 @@ def parse_datas(retry, measurement_date, wind_speed):
         time.sleep(SLEEP - (retry * RETRY_SLEEP))
 
 def get_datas(retry, token):
-    measurement_date, wind_speed = get_wind(authenticate())
+    measurement_date, wind_speed = get_wind(token))
     if measurement_date:
         parse_datas(retry, measurement_date, wind_speed)
         retry = 0
