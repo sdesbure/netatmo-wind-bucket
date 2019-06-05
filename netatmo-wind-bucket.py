@@ -41,6 +41,7 @@ if not device_id:
 buckets_file = Path('buckets.json')
 buckets = {"0": 0, "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0, "7": 0, "8": 0, "9": 0}
 last_time = 0
+
 if buckets_file.is_file():
     logging.info("file for buckets exists, loading")
     with buckets_file.open() as json_file:
@@ -48,6 +49,8 @@ if buckets_file.is_file():
             data = json.load(json_file)
             buckets = data["buckets"]
             last_time = data["last_time"]
+            logging.info("buckets: %s", buckets)
+            logging.info("last_time: %s", last_time)
         except json.decoder.JSONDecodeError:
             logging.warn("buckets.json is not a valid json file, ignoring")
         except KeyError:
@@ -122,6 +125,8 @@ def retry_wait(retry, action):
     return retry
 
 def parse_datas(retry, measurement_date, wind_speed):
+    global last_time
+    global buckets
     logging.info("time of measurement (utc): %s", datetime.fromtimestamp(measurement_date))
     logging.info("wind speed (km/h): %s", wind_speed)
     logging.info("wind speed (m/s): %s", int(wind_speed) * 0.27778)
