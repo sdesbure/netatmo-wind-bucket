@@ -135,7 +135,7 @@ def parse_datas(retry, measurement_date, wind_speed):
         last_time = measurement_date
         with buckets_file.open(mode='w') as json_file:
             json.dump({'buckets': buckets, 'last_time': last_time}, json_file)
-        time.sleep(SLEEP - (retry * RETRY_SLEEP))
+    time.sleep(SLEEP - (retry * RETRY_SLEEP))
 
 def get_datas(retry, token):
     measurement_date, wind_speed = get_wind(token)
