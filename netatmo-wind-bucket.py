@@ -100,10 +100,13 @@ def parse_modules(modules):
     return None, None
 
 def parse_module(module):
-    if "Wind" in module["data_type"]:
-        measurement_date = module["dashboard_data"]["time_utc"]
-        wind_speed = module["dashboard_data"]["WindStrength"]
-        return measurement_date, wind_speed
+    try:
+        if "Wind" in module["data_type"]:
+            measurement_date = module["dashboard_data"]["time_utc"]
+            wind_speed = module["dashboard_data"]["WindStrength"]
+            return measurement_date, wind_speed
+    except KeyError:
+        pass
     return None, None
 
 def update_buckets(buckets, value):
